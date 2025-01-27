@@ -1,18 +1,44 @@
 import math
 from PIL import Image, ImageDraw
 import tomllib
-from pprint import pprint
+import argparse
+import os
+# from pprint import pprint
+
+PRESET_LAYOUT = """\
+[dimension]
+width = 595
+height = 842
+
+[margin]
+top = 5
+bottom = 5
+left = 5
+right = 5
+
+[[guides]]
+angle = 68
+spacing = 10
+lines = [{ color = 0xD9D9D9, width = 0 }]
+
+[[guides]]
+angle = 0
+spacing = 2
+lines = [
+  { color = 0xD9D9D9, width = 0 },
+  { gap = 8 },
+  { color = 0xDDDDDD, width = 0 },
+  { gap = 8 },
+  { color = 0xDDDDDD, width = 0 },
+  { gap = 8 },
+  { color = 0xD9D9D9, width = 0 },
+]
+"""
 
 
-def draw():
-    with open("config.toml", "rb") as f:
-        layout = tomllib.load(f)
-
-    pprint(layout)
-
+def draw(layout: dict, output_file: str, quality: int):
     p_span_x = layout["dimension"]["width"]
     p_span_y = layout["dimension"]["height"]
-
     margin_top = layout["margin"]["top"]
     margin_bot = layout["margin"]["bottom"]
     margin_lft = layout["margin"]["left"]
@@ -63,10 +89,10 @@ def draw():
         sy = (ix2 * c1) + (iy2 * c2)
         return (sx, sy)
 
-    for mesh_item in layout["mesh"]:
-        angle = (mesh_item["angle"] % 360) * math.pi / 180
-        spacing = mesh_item["spacing"]
-        lines = mesh_item["lines"]
+    for guide in layout["guides"]:
+        angle = (guide["angle"] % 360) * math.pi / 180
+        spacing = guide["spacing"]
+        lines = guide["lines"]
 
         if (angle >= 0 and angle < math.pi / 2) or (
             angle >= math.pi and angle < math.pi * 3 / 2
@@ -76,8 +102,6 @@ def draw():
         else:
             span_x = pdist(angle + (math.pi / 2), 0, 0, p_span_x, p_span_y)
             span_y = pdist(angle, 0, p_span_y, p_span_x, 0)
-
-        # ============================
 
         ext_x = (span_x - p_span_x) / 2
         ext_y = (span_y - p_span_y) / 2
@@ -96,34 +120,23 @@ def draw():
         y_start = lim_y_lo + y_offset
         y_end = lim_y_hi - y_offset
 
-        # xa, ya = rotc(angle, lim_x_lo, lim_y_lo)
-        # xb, yb = rotc(angle, lim_x_hi, lim_y_lo)
-        # draw.line((xa, ya, xb, yb), fill=0x0000FF, width=3)
-        # xa, ya = rotc(angle, lim_x_lo, lim_y_hi)
-        # xb, yb = rotc(angle, lim_x_hi, lim_y_hi)
-        # draw.line((xa, ya, xb, yb), fill=0x0000FF, width=3)
-
         x_lo = margin_lft
         x_hi = p_span_x - margin_rgt
         y_lo = margin_top
         y_hi = p_span_y - margin_bot
-
-        print(f"{x_lo=}  {x_hi=}")
-        print(f"{y_lo=}  {y_hi=}")
 
         y = y_start
         while True:
             if y + guide_span_y > y_end:
                 break
 
-            for line_item in lines:
-                if gap := line_item.get("gap"):
+            for line in lines:
+                if gap := line.get("gap"):
                     y += gap
                     continue
 
-                color = line_item["color"]
-                width = line_item["width"]
-
+                color = line["color"]
+                width = line["width"]
                 xa, ya = rotc(angle, x_start, y)
                 xb, yb = rotc(angle, x_end, y)
                 mr = pp2mr((xa, ya), (xb, yb))
@@ -168,12 +181,52 @@ def draw():
 
             y += spacing
 
-    im.save("test.jpg", quality=100)
+    im.save(output_file, quality=quality)
+    print(f"`{output_file}` has been created! ✨")
 
 
 def main():
-    draw()
+    parser = argparse.ArgumentParser()
+
+    subparser = parser.add_subparsers(required=True)
+    parser_tmpl = subparser.add_parser(
+        "template", aliases=["tp"], help="generate template layout file"
+    )
+    parser_tmpl.add_argument("tmpl_file", nargs="?", default="layout.toml")
+    parser_tmpl.add_argument("-f", "--force", action="store_true")
+
+    parser_gen = subparser.add_parser("create", aliases=["cr"], help="create sheet")
+    parser_gen.add_argument("-a", "--layout", help="layout file")
+    parser_gen.add_argument(
+        "-o", "--output", default="calligraphy-sheet.jpg", help="output file"
+    )
+    parser_gen.add_argument("-q", "--quality", default=100, help="quality")
+
+    args = parser.parse_args()
+
+    if hasattr(args, "tmpl_file") and hasattr(args, "force"):
+        if os.path.exists(args.tmpl_conf_file) and not args.force:
+            print(f"`{args.tmpl_conf_file}` exists")
+            return
+
+        with open(args.tmpl_conf_file, "w") as f:
+            f.write(PRESET_LAYOUT)
+            print(f"`{args.tmpl_conf_file}` has been created! ✨")
+
+    elif (
+        hasattr(args, "layout") and hasattr(args, "output") and hasattr(args, "quality")
+    ):
+        if args.layout:
+            with open(args.layout, "rb") as f:
+                layout = tomllib.load(f)
+        else:
+            layout = tomllib.loads(PRESET_LAYOUT)
+
+        draw(layout, args.output, args.quality)
+
+    else:
+        assert False
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
