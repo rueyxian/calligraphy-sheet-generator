@@ -3,9 +3,9 @@ from PIL import Image, ImageDraw
 import tomllib
 import argparse
 import os
-# from pprint import pprint
+from pprint import pprint
 
-PRESET_LAYOUT = """\
+PRESET_LAYOUT_1 = """\
 [dimension]
 width = 595
 height = 842
@@ -27,13 +27,74 @@ spacing = 0
 lines = [
   { color = 0xD9D9D9, width = 0 },
   { gap = 7 },
-  # { color = 0xDDDDDD, width = 0 },
-  # { gap = 7 },
-  # { color = 0xDDDDDD, width = 0 },
-  # { gap = 7 },
-  # { color = 0xD9D9D9, width = 0 },
 ]
 """
+
+PRESET_LAYOUT_2 = """\
+[dimension]
+width = 595
+height = 842
+
+[margin]
+top = 10
+bottom = 10
+left = 10
+right = 10
+
+[[guides]]
+angle = 55.624
+spacing = 10
+lines = [{ color = 0xD9D9D9, width = 0 }]
+
+[[guides]]
+angle = 0
+spacing = 3
+lines = [
+  { color = 0xD9D9D9, width = 0 },
+  { gap = 7 },
+  { color = 0xDDDDDD, width = 0 },
+  { gap = 7 },
+  { color = 0xDDDDDD, width = 0 },
+  { gap = 7 },
+  { color = 0xD9D9D9, width = 0 },
+]
+"""
+
+PRESET_LAYOUT_3 = """\
+[dimension]
+width = 595
+height = 842
+
+[margin]
+top = 10
+bottom = 10
+left = 10
+right = 10
+
+[[guides]]
+angle = 55.624
+spacing = 10
+lines = [{ color = 0xD9D9D9, width = 0 }]
+
+[[guides]]
+angle = 0
+spacing = 3
+lines = [
+  { color = 0xD9D9D9, width = 0 },
+  { gap = 7 },
+  { color = 0xDDDDDD, width = 0 },
+  { gap = 7 },
+  { color = 0xDDDDDD, width = 0 },
+  { gap = 7 },
+  { color = 0xDDDDDD, width = 0 },
+  { gap = 7 },
+  { color = 0xDDDDDD, width = 0 },
+  { gap = 7 },
+  { color = 0xD9D9D9, width = 0 },
+]
+"""
+
+PRESETS = [PRESET_LAYOUT_1, PRESET_LAYOUT_2, PRESET_LAYOUT_3]
 
 
 def draw(layout: dict, output_file: str, quality: int):
@@ -186,16 +247,23 @@ def draw(layout: dict, output_file: str, quality: int):
 
 
 def main():
-    DEFAULT_LAYOUT_FILE = "layout-config.toml"
+    LAYOUT_FILE = "layout-config.toml"
     DEFAULT_OUTPUT_FILE = "calligraphy-sheet.jpg"
     DEFAULT_QUALITY = 100
 
     parser = argparse.ArgumentParser()
+
     parser.add_argument(
-        "-a", "--layout", default=DEFAULT_LAYOUT_FILE, help="layout config file"
+        "-t",
+        "--template",
+        action="store_true",
+        help="create template layout file",
     )
     parser.add_argument(
-        "-o", "--output", default=DEFAULT_OUTPUT_FILE, help="output calligraphy sheet"
+        "-o",
+        "--output",
+        default=DEFAULT_OUTPUT_FILE,
+        help="output calligraphy sheet",
     )
     parser.add_argument(
         "-q",
@@ -204,18 +272,50 @@ def main():
         default=DEFAULT_QUALITY,
         help="quality of the sheet",
     )
+    parser.add_argument(
+        "-p",
+        "--preset",
+        type=int,
+        choices=range(1, 4),
+        help="preset layout (1-3)",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="verbose",
+    )
+
     args = parser.parse_args()
 
-    if not os.path.exists(args.layout):
-        with open(args.layout, "w") as f:
-            f.write(PRESET_LAYOUT)
-            print(f"`{args.layout}` has been created! ✨")
-        layout = tomllib.loads(PRESET_LAYOUT)
+    if not args.preset:
+        preset = None
     else:
-        with open(args.layout, "rb") as f:
-            layout = tomllib.load(f)
+        assert args.preset <= 3
+        preset = PRESETS[args.preset - 1]
+
+    if args.template:
+        if preset is None:
+            preset = PRESET_LAYOUT_1
+        with open(LAYOUT_FILE, "w") as f:
+            f.write(preset)
+            print(f"`{LAYOUT_FILE}` has been created! ✨")
+        layout = tomllib.loads(preset)
+    else:
+        if preset is None:
+            if not os.path.exists(LAYOUT_FILE):
+                layout = tomllib.loads(PRESET_LAYOUT_1)
+            else:
+                with open(LAYOUT_FILE, "rb") as f:
+                    layout = tomllib.load(f)
+        else:
+            layout = tomllib.loads(preset)
 
     draw(layout, args.output, args.quality)
+
+    if args.verbose:
+        print()
+        pprint(layout)
 
 
 if __name__ == "__main__":
