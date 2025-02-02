@@ -11,27 +11,27 @@ width = 595
 height = 842
 
 [margin]
-top = 5
-bottom = 5
-left = 5
-right = 5
+top = 10
+bottom = 10
+left = 10
+right = 10
 
 [[guides]]
-angle = 68
+angle = 55.624
 spacing = 10
 lines = [{ color = 0xD9D9D9, width = 0 }]
 
 [[guides]]
 angle = 0
-spacing = 2
+spacing = 0
 lines = [
   { color = 0xD9D9D9, width = 0 },
-  { gap = 8 },
-  { color = 0xDDDDDD, width = 0 },
-  { gap = 8 },
-  { color = 0xDDDDDD, width = 0 },
-  { gap = 8 },
-  { color = 0xD9D9D9, width = 0 },
+  { gap = 7 },
+  # { color = 0xDDDDDD, width = 0 },
+  # { gap = 7 },
+  # { color = 0xDDDDDD, width = 0 },
+  # { gap = 7 },
+  # { color = 0xD9D9D9, width = 0 },
 ]
 """
 
@@ -186,46 +186,36 @@ def draw(layout: dict, output_file: str, quality: int):
 
 
 def main():
+    DEFAULT_LAYOUT_FILE = "layout-config.toml"
+    DEFAULT_OUTPUT_FILE = "calligraphy-sheet.jpg"
+    DEFAULT_QUALITY = 100
+
     parser = argparse.ArgumentParser()
-
-    subparser = parser.add_subparsers(required=True)
-    parser_tmpl = subparser.add_parser(
-        "template", aliases=["tp"], help="generate template layout file"
+    parser.add_argument(
+        "-a", "--layout", default=DEFAULT_LAYOUT_FILE, help="layout config file"
     )
-    parser_tmpl.add_argument("tmpl_file", nargs="?", default="layout.toml")
-    parser_tmpl.add_argument("-f", "--force", action="store_true")
-
-    parser_gen = subparser.add_parser("create", aliases=["cr"], help="create sheet")
-    parser_gen.add_argument("-a", "--layout", help="layout file")
-    parser_gen.add_argument(
-        "-o", "--output", default="calligraphy-sheet.jpg", help="output file"
+    parser.add_argument(
+        "-o", "--output", default=DEFAULT_OUTPUT_FILE, help="output calligraphy sheet"
     )
-    parser_gen.add_argument("-q", "--quality", default=100, help="quality")
-
+    parser.add_argument(
+        "-q",
+        "--quality",
+        type=int,
+        default=DEFAULT_QUALITY,
+        help="quality of the sheet",
+    )
     args = parser.parse_args()
 
-    if hasattr(args, "tmpl_file") and hasattr(args, "force"):
-        if os.path.exists(args.tmpl_conf_file) and not args.force:
-            print(f"`{args.tmpl_conf_file}` exists")
-            return
-
-        with open(args.tmpl_conf_file, "w") as f:
+    if not os.path.exists(args.layout):
+        with open(args.layout, "w") as f:
             f.write(PRESET_LAYOUT)
-            print(f"`{args.tmpl_conf_file}` has been created! ✨")
-
-    elif (
-        hasattr(args, "layout") and hasattr(args, "output") and hasattr(args, "quality")
-    ):
-        if args.layout:
-            with open(args.layout, "rb") as f:
-                layout = tomllib.load(f)
-        else:
-            layout = tomllib.loads(PRESET_LAYOUT)
-
-        draw(layout, args.output, args.quality)
-
+            print(f"`{args.layout}` has been created! ✨")
+        layout = tomllib.loads(PRESET_LAYOUT)
     else:
-        assert False
+        with open(args.layout, "rb") as f:
+            layout = tomllib.load(f)
+
+    draw(layout, args.output, args.quality)
 
 
 if __name__ == "__main__":
